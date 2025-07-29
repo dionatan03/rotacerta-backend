@@ -1,0 +1,12 @@
+# binários
+*.exe
+*.dll
+*.so
+*.dylib
+
+# pasta de dependências
+/vendor/
+
+# arquivos de IDE
+.vscode/
+*.swp
