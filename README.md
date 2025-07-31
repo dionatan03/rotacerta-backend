@@ -1,9 +1,9 @@
-# Rota Certa – Backend Go
+# RotaCerta Backend
 
-## Visão
-API em Go 1.24.5 para gerenciamento de entregas, rotas otimizadas e integração WhatsApp.
+Backend Go, produção Railway.
 
-## Rodando local
-```sh
-go run ./cmd
-curl localhost:8080/health
+- JWT seguro, billing, notificações, painel admin/hub.
+- Banco Postgres (Railway).
+- Variáveis: DATABASE_URL, JWT_SECRET, BILLING_SECRET, WHATSAPP_API_URL, WHATSAPP_API_TOKEN, TRIAL_DAYS.
+
+Rodando no Railway: suba o projeto via GitHub, conecte o banco, configure as variáveis, deploy automático.

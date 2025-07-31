@@ -1,20 +1,52 @@
-package main
+package internal
 
-// User representa motorista ou hub user
+import (
+	"gorm.io/gorm"
+	"time"
+)
+
+// Usuário do sistema
 type User struct {
-    ID       uint   `gorm:"primaryKey"`
-    Name     string `gorm:"size:120"`
-    Phone    string `gorm:"uniqueIndex"`
-    Password string `json:"-"`
+	gorm.Model
+	Name          string
+	Phone         string `gorm:"unique"`
+	PasswordHash  string
+	Role          string // "driver", "hub", "admin"
+	Deliveries    []Delivery
+	Subscriptions []Subscription
+	TrialEndsAt   *time.Time
+	LastLoginAt   *time.Time
+	Blocked       bool
 }
 
-// Delivery representa uma entrega
+// Entrega
 type Delivery struct {
-    ID        uint    `gorm:"primaryKey"`
-    DriverID  uint    // FK para User.ID
-    Customer  string  // nome do cliente
-    Address   string  // endereço de entrega
-    Status    string  // pending|started|arrived|finished|failed
-    Latitude  float64 // opcional
-    Longitude float64 // opcional
+	gorm.Model
+	Address     string
+	Status      string // "pendente", "em_rota", "entregue", "ausente"
+	DriverID    uint
+	Driver      *User
+	Description string
+	CreatedBy   uint // <--- AQUI fica o ID do hub/admin que criou
+}
+// Assinatura
+type Subscription struct {
+	gorm.Model
+	UserID    uint
+	Active    bool
+	ExpiresAt time.Time
+	BillingID string
+	Type      string // "google", "stripe"
+}
+
+// Log de eventos do sistema
+type Log struct {
+	gorm.Model
+	UserID    uint
+	Message   string
+	EventType string
+}
+
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(&User{}, &Delivery{}, &Subscription{}, &Log{})
 }
