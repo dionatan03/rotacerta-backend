@@ -12,7 +12,7 @@ type User struct {
 	Phone         string `gorm:"unique"`
 	PasswordHash  string
 	Role          string // "driver", "hub", "admin"
-	Deliveries    []Delivery
+	Deliveries    []Delivery `gorm:"foreignKey:DriverID"`
 	Subscriptions []Subscription
 	TrialEndsAt   *time.Time
 	LastLoginAt   *time.Time
