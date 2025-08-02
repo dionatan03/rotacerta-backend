@@ -18,12 +18,12 @@ func getEnv(k, d string) string {
     return v
 }
 
-// Autenticação JWT
+// JWT autenticação
 func AuthMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         auth := c.GetHeader("Authorization")
         if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token ausente"})
+            RespondError(c, http.StatusUnauthorized, "Token ausente")
             return
         }
         tokenString := strings.TrimPrefix(auth, "Bearer ")
@@ -31,28 +31,39 @@ func AuthMiddleware() gin.HandlerFunc {
             return jwtKey, nil
         })
         if err != nil || !token.Valid {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token inválido"})
+            RespondError(c, http.StatusUnauthorized, "Token inválido")
             return
         }
         claims, ok := token.Claims.(jwt.MapClaims)
         if !ok {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token inválido"})
+            RespondError(c, http.StatusUnauthorized, "Token inválido")
             return
         }
-        c.Set("user_id", uint(claims["user_id"].(float64)))
-        c.Set("role", claims["role"].(string))
-        c.Set("active", claims["active"].(bool))
+        userID, ok := claims["user_id"].(float64)
+        if !ok {
+            RespondError(c, http.StatusUnauthorized, "Token corrompido")
+            return
+        }
+        role, ok := claims["role"].(string)
+        if !ok {
+            RespondError(c, http.StatusUnauthorized, "Token corrompido")
+            return
+        }
+        active, _ := claims["active"].(bool)
+        c.Set("user_id", uint(userID))
+        c.Set("role", role)
+        c.Set("active", active)
         c.Next()
     }
 }
 
-// Protege endpoints para só acessar se assinatura/trial ativa
+// Só permite usuários com assinatura ou trial ativa
 func ActiveSubscriptionMiddleware(db *gorm.DB) gin.HandlerFunc {
     return func(c *gin.Context) {
         userID := c.GetUint("user_id")
         var user User
         if err := db.First(&user, userID).Error; err != nil {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "usuário não encontrado"})
+            RespondError(c, http.StatusUnauthorized, "Usuário não encontrado")
             return
         }
         now := Now()
@@ -60,29 +71,44 @@ func ActiveSubscriptionMiddleware(db *gorm.DB) gin.HandlerFunc {
         var sub Subscription
         hasSub := db.Where("user_id = ? AND active = true AND expires_at > ?", userID, now).First(&sub).Error == nil
         if !trialOk && !hasSub {
-            c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{"error": "assinatura expirada"})
+            RespondError(c, http.StatusPaymentRequired, "Assinatura expirada")
             return
         }
         c.Next()
     }
 }
 
-// Só permite admin ou hub acessar
+// Só permite admin/hub
 func AdminOnly() gin.HandlerFunc {
     return func(c *gin.Context) {
         role := c.GetString("role")
         if role != "hub" && role != "admin" {
-            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "acesso restrito"})
+            RespondError(c, http.StatusForbidden, "Acesso restrito")
             return
         }
         c.Next()
     }
 }
 
-// CORS Middleware
+// CORS seguro — só libera domínio confiável
 func CORSMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+        allowed := []string{
+            "https://seuapp.com",        // Troque pelo seu domínio real
+            "https://admin.seuapp.com",  // Painel admin/hub
+            "http://localhost:3000",     // Só em desenvolvimento!
+        }
+        origin := c.GetHeader("Origin")
+        isAllowed := false
+        for _, o := range allowed {
+            if o == origin {
+                isAllowed = true
+                break
+            }
+        }
+        if isAllowed {
+            c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+        }
         c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
         c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         if c.Request.Method == "OPTIONS" {

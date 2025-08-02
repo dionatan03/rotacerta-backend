@@ -9,8 +9,8 @@ import (
 type User struct {
 	gorm.Model
 	Name          string
-	Phone         string `gorm:"unique"`
-	PasswordHash  string
+	Phone         string `gorm:"unique;not null"`
+	PasswordHash  string `gorm:"not null"`
 	Role          string // "driver", "hub", "admin"
 	Deliveries    []Delivery `gorm:"foreignKey:DriverID"`
 	Subscriptions []Subscription
@@ -25,10 +25,11 @@ type Delivery struct {
 	Address     string
 	Status      string // "pendente", "em_rota", "entregue", "ausente"
 	DriverID    uint
-	Driver      *User
+	Driver      *User  // FK para User (Driver)
 	Description string
-	CreatedBy   uint // <--- AQUI fica o ID do hub/admin que criou
+	CreatedBy   uint   // ID do hub/admin que criou
 }
+
 // Assinatura
 type Subscription struct {
 	gorm.Model
@@ -47,6 +48,7 @@ type Log struct {
 	EventType string
 }
 
+// Migration automática
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(&User{}, &Delivery{}, &Subscription{}, &Log{})
 }
